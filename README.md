@@ -13,8 +13,12 @@ Centroid information will be stored in the *csv* file (created using the *Export
 To use the Matlab function, the *xlsx* file included here should be updated with the material parameters in the sheet (with the corresponding name) in the order provided in the pdf found [here](http://www.columbia.edu/~jk2079/Kysar_Research_Laboratory/Single_Crystal_UMAT.html). 
 
 The location of the centroid of each grain can be extracted from the generated *csv* file.  These values should be transferred to the *centroid* sheet in the *xlsx* file (inputfile_info)
+
+## Installation
+Simply copy files in the folder titled *Dream3d2Abaqus* into the MATLAB file path.
+
 ## Running the MATLAB function
-To run the function, download all the files contained here and run from the command prompt using the following command:
+Run from the command prompt the following:
 *dream2abq('nameofvoxfile.vox','nameofinputfile.inp')*
 where:
 * nameofvoxfile = name of the vox file included in the same directly and which is exported using the *Export Los Alamos FFT File* filter
