@@ -6,4 +6,4 @@ The generated microstructure features and orientations are assigned to element s
 ## Dream3D Requirements
 The minimum filter construction required is as follows:
 
-<img src="/Images/minimum_filter_pipeline.png" width="100" height="100">
+<img src="/Images/minimum_filter_pipeline.png" width="200" height="200">
