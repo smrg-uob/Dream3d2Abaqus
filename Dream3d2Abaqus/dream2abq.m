@@ -1119,7 +1119,7 @@ function dream2abq(voxFileName, inpFileName)
     A(57:59)=v1;
     A(65:67)=v2;
     for ii=1:length(grain_order) 
-        fprintf(inpFile, '\n*Material, name=Grain_Mat%d',i);
+        fprintf(inpFile, '\n*Material, name=MATERIAL-GRAIN%d',ii);
         fprintf(inpFile, '\n*Depvar\n10000,');
         fprintf(inpFile, '\n*User Material, constants=175\n');
         %updating the material parameters with global vectors
