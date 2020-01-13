@@ -1,4 +1,4 @@
-function dream2abq(voxFileName, inpFileName)
+function dream2abq(voxFileName2, voxFileName, inpFileName)
     %creates an input file containing periodic boundary conditions using
     %the *dream2abhex* conversion approach developed by:
         %Marat I. Latypov while at POSTECH
@@ -58,11 +58,17 @@ function dream2abq(voxFileName, inpFileName)
     rawData = textscan(fid, '%f %f %f %f %f %f %d %d','delimiter',' ');
     fclose(fid);
 
+    %open grain boundary distance file
+    fidnew=fopen(voxFileName2,'rt');
+    rawData2 = textscan(fidnew, '%f');
+    fclose(fidnew);
+
     % load euler angles, coordinates, grain and phase IDs
     euler   = cell2mat(rawData(1:3));
     xyz     = cell2mat(rawData(4:6));
     grains  = cell2mat(rawData(7));
     phases  = cell2mat(rawData(8));
+    gbdist  = cell2mat(rawData2(1));
     [~,order] = sortrows(xyz,[1,3,2]);
     
     %grains=grains+1;
@@ -201,6 +207,10 @@ function dream2abq(voxFileName, inpFileName)
             end
         end
     end
+    %% Opening a file to store element id with gb distance
+    gbfile=fopen('gb_element.txt','wt');
+    elfile=fopen('el_element.txt','wt');
+    
 
     %% Write the overall element and node sets to input file
     % open inp file and write keywords 
@@ -224,12 +234,17 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'%d, %d, %d, %d, %d, %d, %d, %d, %d\n',elem(grains==grain_order(ii))');
         numels=0;
         
+        fprintf(gbfile,'%d,%d\n',[elem(grains==grain_order(ii)),gbdist(grains==grain_order(ii))]');
+       
+        
+        
         for tt=1:length(elem(grains==grain_order(ii)))
             %%
             numels=numels+1;
         end
        numels_total(grain_order(ii))=numels;
     end
+    fclose(gbfile);
     %% Write element set for each phase to input file
     uniPhases = unique(phases);
     for ii = 1:numel(unique(phases))
@@ -1119,8 +1134,8 @@ function dream2abq(voxFileName, inpFileName)
     A(57:59)=v1;
     A(65:67)=v2;
     for ii=1:length(grain_order) 
-        fprintf(inpFile, '\n*Material, name=MATERIAL-GRAIN%d',ii);
-        fprintf(inpFile, '\n*Depvar\n10000,');
+        fprintf(inpFile, '\n*Material, name=MATERIAL-GRAIN%d',grain_order(ii));
+        fprintf(inpFile, '\n*Depvar\n460,');
         fprintf(inpFile, '\n*User Material, constants=175\n');
         %updating the material parameters with global vectors
         A(60:62)=[u(grain_order(ii)),v(grain_order(ii)),w(grain_order(ii))];
