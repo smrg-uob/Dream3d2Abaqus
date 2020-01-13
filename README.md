@@ -6,7 +6,7 @@ The generated microstructure features and orientations are assigned to element s
 ## Dream3D Requirements
 The minimum filter construction required is as follows:
 
-<img src="/Images/minimum_filter_pipeline.png" width="200" height="200">
+<img src="/Images/pipeline_boundary.png" width="200" height="200">
 
 Centroid information will be stored in the *csv* file (created using the *Export Feature Data as CSV File* filter), while node/element/orientation information is stored in the *.vox* file (created using the *Export Los Alamos FFT File* filter).  Finally, the distance to the grain boundary can be added as a separate file *.vox* (created using *Export ASCII Data*).
 ## Required informtion for Matlab function
