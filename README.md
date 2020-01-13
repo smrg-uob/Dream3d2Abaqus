@@ -14,12 +14,15 @@ To use the Matlab function, the *xlsx* file included here should be updated with
 
 The location of the centroid of each grain can be extracted from the generated *csv* file.  These values should be transferred to the *centroid* sheet in the *xlsx* file (inputfile_info)
 
+The file containing the distance to the grain boundary is exported during the Dream3d construction.  This file must then be added to Matlab file path to be used.
+
 ## Installation
 Simply copy files in the folder titled *Dream3d2Abaqus* into the MATLAB file path.
 
 ## Running the MATLAB function
 Run from the command prompt the following:
-*dream2abq('nameofvoxfile.vox','nameofinputfile.inp')*
+*dream2abq('nameofgrainboundaryvoxfile.vox','nameofvoxfile.vox','nameofinputfile.inp')*
 where:
 * nameofvoxfile = name of the vox file included in the same directly and which is exported using the *Export Los Alamos FFT File* filter
 * nameofinpfule = is the name of the Abaqus input file you would like to create
+* nameofgrainboundaryvoxfile = the name of the vox file which contains the distance to the grain boundary for each cell within the grain.  This is generated using the *Find Euclidean Distance Map* and exported using *Export ASCII Data*
