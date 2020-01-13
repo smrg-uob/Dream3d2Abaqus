@@ -8,7 +8,7 @@ The minimum filter construction required is as follows:
 
 <img src="/Images/minimum_filter_pipeline.png" width="200" height="200">
 
-Centroid information will be stored in the *csv* file (created using the *Export Feature Data as CSV File* filter), while node/element/orientation information is stored in the *.vox* file (created using the *Export Los Alamos FFT File* filter).
+Centroid information will be stored in the *csv* file (created using the *Export Feature Data as CSV File* filter), while node/element/orientation information is stored in the *.vox* file (created using the *Export Los Alamos FFT File* filter).  Finally, the distance to the grain boundary can be added as a separate file *.vox* (created using *Export ASCII Data*).
 ## Required informtion for Matlab function
 To use the Matlab function, the *xlsx* file included here should be updated with the material parameters in the sheet (with the corresponding name) in the order provided in the pdf found [here](http://www.columbia.edu/~jk2079/Kysar_Research_Laboratory/Single_Crystal_UMAT.html). 
 
