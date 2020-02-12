@@ -305,7 +305,7 @@ function dream2abq2(voxFileName2, voxFileName, inpFileName)
                         fcarrayr=find(totalcarray(:,2:9)>0 & totalcarray(:,10)<8);
                         [fcarrayrr,fcarraycc]=find(totalcarray(:,2:9)>0 & totalcarray(:,10)<8);
                       
-                        eles_node=[fcarrayrr,elem(fcarrayr+64000)];
+                        eles_node=[fcarrayrr,elem(fcarrayr+total_els)];
                         
                         
                         %bndels{t}(feature,cont)=%need to add here the nodes for each feature for this element
