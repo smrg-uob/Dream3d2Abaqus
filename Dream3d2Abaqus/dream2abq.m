@@ -1,4 +1,4 @@
-function dream2abq(voxFileName, inpFileName)
+function dream2abq(voxFileName2, voxFileName, inpFileName)
     %creates an input file containing periodic boundary conditions using
     %the *dream2abhex* conversion approach developed by:
         %Marat I. Latypov while at POSTECH
@@ -58,11 +58,17 @@ function dream2abq(voxFileName, inpFileName)
     rawData = textscan(fid, '%f %f %f %f %f %f %d %d','delimiter',' ');
     fclose(fid);
 
+    %open grain boundary distance file
+    fidnew=fopen(voxFileName2,'rt');
+    rawData2 = textscan(fidnew, '%f,%f');
+    fclose(fidnew);
+
     % load euler angles, coordinates, grain and phase IDs
     euler   = cell2mat(rawData(1:3));
     xyz     = cell2mat(rawData(4:6));
     grains  = cell2mat(rawData(7));
     phases  = cell2mat(rawData(8));
+    gbdist  = cell2mat(rawData2(1:2));
     [~,order] = sortrows(xyz,[1,3,2]);
     
     %grains=grains+1;
@@ -201,6 +207,11 @@ function dream2abq(voxFileName, inpFileName)
             end
         end
     end
+    %% Opening a file to store element id with gb distance
+    gbfile=fopen('gb_element.txt','wt');
+    elfile=fopen('el_element.txt','wt');
+    
+    
 
     %% Write the overall element and node sets to input file
     % open inp file and write keywords 
@@ -218,11 +229,18 @@ function dream2abq(voxFileName, inpFileName)
     fprintf(inpFile,'%8d,%8d,%8d,%8d,%8d,%8d,%8d,%8d,%8d\n',elem');
     %% Write the elements sets for each grain to the input file
     % create element sets containing grains
+    %initialising val array
+    for i=1:length(grains)
+        val(i,1)=1;
+    end
     for ii = 1:numel(unique(grains))
         %%
         fprintf(inpFile,'\n*Elset, elset=GRAIN-%d\n',grain_order(ii));
         fprintf(inpFile,'%d, %d, %d, %d, %d, %d, %d, %d, %d\n',elem(grains==grain_order(ii))');
         numels=0;
+        
+        fprintf(gbfile,'%d,%d\n',[elem(grains==grain_order(ii)),gbdist(grains==grain_order(ii),1)]');
+       
         
         for tt=1:length(elem(grains==grain_order(ii)))
             %%
@@ -230,6 +248,132 @@ function dream2abq(voxFileName, inpFileName)
         end
        numels_total(grain_order(ii))=numels;
     end
+   %% list the nodes corresponding to elements for each feature which are at the grain boundary
+   for s=1:length(grain_order)
+    for i=1:length(grain_order)
+        fe(i,1,s)=1;
+        %bnd_feature(i,1)=1;
+    end
+   end
+   
+    for i=1:length(grain_order)
+        elc(i,1)=1;
+    end
+    
+      for ii = 1:numel(unique(grains))
+        for t=1:length(elem(:,1))
+            if(grains(t)==grain_order(ii))
+                %if(gbdist(t,1)==0 && gbdist(t+1,2)~=gbdist(t,2))
+                if(gbdist(t,1)==0)
+                
+                        %bnd_feature(gbdist(t+1,2),fe(gbdist(t+1,2),1,grain_order(ii)),grain_order(ii))=elem(t,1);
+                        %fe(gbdist(t+1,2),1,grain_order(ii))=fe(gbdist(t+1,2),1,grain_order(ii))+1;
+                        bnd_elements(grain_order(ii),elc(grain_order(ii),1))=elem(t,1);
+                        elc(grain_order(ii),1)=elc(grain_order(ii),1)+1;
+                    
+                  %for i=2:length(elem(1,:))
+                    
+                   % nodex(grain_order(ii),val(grain_order(ii),1))=coord(elem(t,i),3);
+                    %nodey(grain_order(ii),val(grain_order(ii),1))=coord(elem(t,i),2);
+                   % nodez(grain_order(ii),val(grain_order(ii),1))=coord(elem(t,i),1);
+                    
+                    
+                    
+                    %val(grain_order(ii),1)=val(grain_order(ii),1)+1;
+                  %end
+                end
+             end
+            
+        end
+      end
+      
+     %% Developing the nodes on the surface of feature with each node defined by which feature it is associated with it
+      
+     cc=ones(1000);
+      for t=1:length(bnd_elements(:,1))
+        for i=1:length(bnd_elements(t,:))
+            if((bnd_elements(t,i)) ~= 0)
+                for s=1:length(elem(:,1))
+                    if(elem(s,1)==bnd_elements(t,i))
+                        carraysum=sum(((elem==elem(s,2))|(elem==elem(s,3))|(elem==elem(s,4))|(elem==elem(s,5))|(elem==elem(s,6))|(elem==elem(s,7))|(elem==elem(s,8))|(elem==elem(s,9))),2);
+                        carray=((elem==elem(s,2))|(elem==elem(s,3))|(elem==elem(s,4))|(elem==elem(s,5))|(elem==elem(s,6))|(elem==elem(s,7))|(elem==elem(s,8))|(elem==elem(s,9)));
+                       
+                        %carray=((elem(:,2:9)==elem(s,2))|(elem(:,2:9)==elem(s,3))|(elem(:,2:9)==elem(s,4))|(elem(:,2:9)==elem(s,5))|(elem(:,2:9)==elem(s,6))|(elem(:,2:9)==elem(s,7))|(elem(:,2:9)==elem(s,8))|(elem(:,2:9)==elem(s,9)));
+                        totalcarray=[carray,carraysum];
+                        fcarrayr=find(totalcarray(:,2:9)>0 & totalcarray(:,10)<8);
+                        [fcarrayrr,fcarraycc]=find(totalcarray(:,2:9)>0 & totalcarray(:,10)<8);
+                      
+                        eles_node=[fcarrayrr,elem(fcarrayr+total_els)];
+                        
+                        
+                        %bndels{t}(feature,cont)=%need to add here the nodes for each feature for this element
+                       %checkarray=find(sum(ismember(bnd_elements,fcarrayr),2)>=1);
+                       remove_row=bnd_elements;
+                       remove_row(t,:)=[0];
+                       [checkarrayr,checkarrayc]=find(ismember(remove_row,fcarrayrr')>=1);
+                       %checkarray(t)=[];
+                       
+                       for ls=1:length(checkarrayr)
+                           el_val=remove_row(checkarrayr(ls),checkarrayc(ls));
+                           for uy=1:length(eles_node(:,1))
+                               
+                               if(eles_node(uy,1)==el_val)  
+                                feature_node(checkarrayr(ls),cc(checkarrayr(ls),t),t)=eles_node(uy,2);
+                                cc(checkarrayr(ls),t)=cc(checkarrayr(ls),t)+1;
+                               end
+                           end
+                       end    
+                    end
+                end
+            end        
+        end
+      end
+      
+      %% convert 3d array to 2d array for exporting
+      %check the size of the array
+      feature_node_size=size(feature_node);
+      feature_node_2d=reshape(feature_node,[feature_node_size(1),feature_node_size(2)*feature_node_size(3)]);
+      
+      for i=1:length(feature_node_2d(:,1))
+          for iii=1:length(feature_node_2d(1,:))
+              if(feature_node_2d(i,iii)~=0)
+                nodex(i,iii)=coord(feature_node_2d(i,iii),3);
+                nodey(i,iii)=coord(feature_node_2d(i,iii),2);
+                nodez(i,iii)=coord(feature_node_2d(i,iii),1);
+              else
+                nodex(i,iii)=0;
+                nodey(i,iii)=0;
+                nodez(i,iii)=0;
+              end
+          end
+      end
+      
+  
+   
+    fclose(gbfile);
+    fclose(elfile);
+    
+    %% Writing node x cordinate values for each feature
+    nodecoordxfile=fopen('node_coordx.txt','wt');
+    [rows cols] = size(nodex);
+    x = repmat('%f\t',1,(cols-1));
+    fprintf(nodecoordxfile,[x,'%f\n'],nodex');
+    fclose(nodecoordxfile);
+    
+    %% Writing node y cordinate values for each feature
+    nodecoordyfile=fopen('node_coordy.txt','wt');
+    [rows cols] = size(nodey);
+    x = repmat('%f\t',1,(cols-1));
+    fprintf(nodecoordyfile,[x,'%f\n'],nodey');
+    fclose(nodecoordyfile);
+    
+    %% Writing node x cordinate values for each feature
+    nodecoordzfile=fopen('node_coordz.txt','wt');
+    [rows cols] = size(nodez);
+    x = repmat('%f\t',1,(cols-1));
+    fprintf(nodecoordzfile,[x,'%f\n'],nodez');
+    fclose(nodecoordzfile);
+    
     %% Write element set for each phase to input file
     uniPhases = unique(phases);
     for ii = 1:numel(unique(phases))
@@ -276,9 +420,9 @@ function dream2abq(voxFileName, inpFileName)
     fprintf(inpFile,'\n*Node\n1,%f,%f,%f\n',middle_nodex,0,-1);
     fprintf(inpFile,'\n*Node\n2,%f,%f,%f\n',-1,0,middle_nodez);
     fprintf(inpFile,'\n*Node\n3,%f,%f,%f\n',middle_nodez,-1,middle_nodez);
-    fprintf(inpFile,'*Nset, nset=refnodez\n 1,\n');
-    fprintf(inpFile,'*Nset, nset=refnodex\n 2,\n');
-    fprintf(inpFile,'*Nset, nset=refnodey\n 3,\n');
+    fprintf(inpFile,'*Nset, nset=refnodeS\n 1,\n');
+    fprintf(inpFile,'*Nset, nset=refnodeD\n 2,\n');
+    fprintf(inpFile,'*Nset, nset=refnodeS2\n 3,\n');
     
    %% Applying periodic boundary conditions
    % Node sets defining the faces, edges and veritices of the RVE are
@@ -498,7 +642,9 @@ function dream2abq(voxFileName, inpFileName)
    total=1;
    for jn=1:(max_value-1)
        %%
-       for in=kn:(max_value+1)^2:((max_value+1)^2)*(max_value)
+       %for in=kn:(max_value+1)^2:((max_value+1)^2)*(max_value)
+       %for in=kn:(max_value+1):((max_value+1)^2)*(max_value)
+        for   in=kn:(max_value+1):(max_value)*(max_value-1)+kn
            %%
            set_node_bottom(total)=in;
            fprintf(inpFile,'\n*Nset, nset=BotS-%d, instance=DREAM-1\n',total);
@@ -506,12 +652,14 @@ function dream2abq(voxFileName, inpFileName)
            total=total+1;
        end
        total_all=total_all+total;
-       kn=kn+(max_value+1);
+       %kn=kn+(max_value+1);
+       kn=kn+(max_value+1)^2;
    end
    
    %C6
+   kn=((max_value+1)^2)*(max_value)+1;
    total=1;
-   kn=kn+((max_value+1)^2)*(max_value-1);
+   kn=kn+(max_value+1)*(max_value);
    for in=kn:kn
        %%
        set_node_C6(total)=in;
@@ -644,27 +792,29 @@ function dream2abq(voxFileName, inpFileName)
     % "Unit cells for micromechanical analyses of particle-reinforced composites." 
     % Mechanics of Materials 36(7),543-572.
 
-    %% UC-UD=FCD
+    
+
+        %% UC-UD=FCD
     for node=1:length(set_node_TopS)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nTopS-%d, 1, 1',node);
         fprintf(inpFile,'\nBotS-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodey, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 2, 1');
     end
     for node=1:length(set_node_TopS)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nTopS-%d, 2, 1',node);
         fprintf(inpFile,'\nBotS-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodey, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 2, 1');
     end
      for node=1:length(set_node_TopS)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nTopS-%d, 3, 1',node);
         fprintf(inpFile,'\nBotS-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodey, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 2, 1');
      end
      
     %% UA-UB=FAB 
@@ -674,7 +824,7 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nFrontS-%d, 1, 1',node);
         fprintf(inpFile,'\nBackS-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodex, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 1, 1');
     end
     
     for node=1:length(set_node_fronts)
@@ -682,7 +832,7 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nFrontS-%d, 2, 1',node);
         fprintf(inpFile,'\nBackS-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodex, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
     end
     
     for node=1:length(set_node_fronts)
@@ -690,7 +840,7 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nFrontS-%d, 3, 1',node);
         fprintf(inpFile,'\nBackS-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodex, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
     end
          
     %% UE-UF=FEF
@@ -699,46 +849,49 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nLeftS-%d, 1, 1',node);
         fprintf(inpFile,'\nRightS-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodez, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 3, 1');
     end
     for node=1:length(set_node_lefts)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nLeftS-%d, 2, 1',node);
         fprintf(inpFile,'\nRightS-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodez, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 3, 1');
     end
     for node=1:length(set_node_lefts)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nLeftS-%d, 3, 1',node);
         fprintf(inpFile,'\nRightS-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodez, 3, 1');
+        fprintf(inpFile,'\nrefnodeD, 3, 1');
     end
       
     %% UIII-UI=FAB+FCD
     for node=1:length(set_node_F_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nF_T_edge-%d, 1, 1',node);
         fprintf(inpFile,'\nB_B_edge-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodex, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 2, 1');
     end
    
     for node=1:length(set_node_F_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nF_T_edge-%d, 2, 1',node);
         fprintf(inpFile,'\nB_B_edge-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodey, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
     end
    
     for node=1:length(set_node_F_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nF_T_edge-%d, 3, 1',node);
         fprintf(inpFile,'\nB_B_edge-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodex, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
+        fprintf(inpFile,'\nrefnodeS, 2, 1');
     end
    
    %% UII-UI=FAB
@@ -747,21 +900,21 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nF_B_edge-%d, 1, 1',node);
         fprintf(inpFile,'\nB_B_edge-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodex, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 1, 1');
    end     
    for node=1:length(set_node_B_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nF_B_edge-%d, 2, 1',node);
         fprintf(inpFile,'\nB_B_edge-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodex, 2, 1');    
+        fprintf(inpFile,'\nrefnodeS, 1, 1');    
    end
    for node=1:length(set_node_B_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nF_B_edge-%d, 3, 1',node);
         fprintf(inpFile,'\nB_B_edge-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodex, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
    end
 
     %% UIV-UI=FCD
@@ -771,14 +924,14 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nB_T_edge-%d, 1, 1',node);
         fprintf(inpFile,'\nB_B_edge-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodey, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 2, 1');
     end        
     for node=1:length(set_node_B_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nB_T_edge-%d, 2, 1',node);
         fprintf(inpFile,'\nB_B_edge-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodey, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 2, 1');
         
     end
     for node=1:length(set_node_B_T_edge)
@@ -786,7 +939,7 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nB_T_edge-%d, 3, 1',node);
         fprintf(inpFile,'\nB_B_edge-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodey, 3, 1');    
+        fprintf(inpFile,'\nrefnodeS, 2, 1');    
     end
 
     %% UVIII-UV=FEF
@@ -795,44 +948,47 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nB_L_edge-%d, 1, 1',node);
         fprintf(inpFile,'\nB_R_edge-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodez, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 3, 1');
     end
     for node=1:length(set_node_frontleft)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nB_L_edge-%d, 2, 1',node);
         fprintf(inpFile,'\nB_R_edge-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodez, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 3, 1');
     end
     for node=1:length(set_node_frontleft)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nB_L_edge-%d, 3, 1',node);
         fprintf(inpFile,'\nB_R_edge-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodez, 3, 1');
+        fprintf(inpFile,'\nrefnodeD, 3, 1');
     end
 
     %% UVII-UV=FAB+FEF
     for node=1:length(set_node_frontleft)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nF_L_edge-%d, 1, 1',node);
         fprintf(inpFile,'\nB_R_edge-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodex, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 3, 1');
     end
     for node=1:length(set_node_frontleft)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nF_L_edge-%d, 2, 1',node);
         fprintf(inpFile,'\nB_R_edge-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodez, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
+        fprintf(inpFile,'\nrefnodeS, 3, 1');
     end
     for node=1:length(set_node_frontleft)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nF_L_edge-%d, 3, 1',node);
         fprintf(inpFile,'\nB_R_edge-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodez, 3, 1');
+        fprintf(inpFile,'\nrefnodeD, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
     end
 
     %% UVI-UV=FAB
@@ -841,7 +997,7 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nF_R_edge-%d, 1, 1',node);
         fprintf(inpFile,'\nB_R_edge-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodex, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 1, 1');
     end
     
     for node=1:length(set_node_backright)
@@ -849,7 +1005,7 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nF_R_edge-%d, 2, 1',node);
         fprintf(inpFile,'\nB_R_edge-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodex, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
     end
     
     for node=1:length(set_node_backright)
@@ -857,7 +1013,7 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nF_R_edge-%d, 3, 1',node);
         fprintf(inpFile,'\nB_R_edge-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodex, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
     end
 
     %% UX-UIX=FCD
@@ -866,7 +1022,7 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nR_T_edge-%d, 1, 1',node);
         fprintf(inpFile,'\nR_B_edge-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodey, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 2, 1');
     end
     
     for node=1:length(set_node_L_T_edge)
@@ -874,38 +1030,41 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nR_T_edge-%d, 2, 1',node);
         fprintf(inpFile,'\nR_B_edge-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodey, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 2, 1');
     end
     for node=1:length(set_node_L_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nR_T_edge-%d, 3, 1',node);
         fprintf(inpFile,'\nR_B_edge-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodey, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
     end
     
     %% UXI-UIX=FCD+FEF
     for node=1:length(set_node_L_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nL_T_edge-%d, 1, 1',node);
         fprintf(inpFile,'\nR_B_edge-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodey, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 2, 1');
+        fprintf(inpFile,'\nrefnodeS2, 3, 1');
     end
    
     for node=1:length(set_node_L_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nL_T_edge-%d, 2, 1',node);
         fprintf(inpFile,'\nR_B_edge-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodey, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 3, 1');
     end
     for node=1:length(set_node_L_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nL_T_edge-%d, 3, 1',node);
         fprintf(inpFile,'\nR_B_edge-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodez, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 3, 1');
     end
 
     %% UXII-UIX=FEF
@@ -914,21 +1073,21 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nL_B_edge-%d, 1, 1',node);
         fprintf(inpFile,'\nR_B_edge-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodez, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 3, 1');
     end
     for node=1:length(set_node_L_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nL_B_edge-%d, 2, 1',node);
         fprintf(inpFile,'\nR_B_edge-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodez, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 3, 1');
     end
     for node=1:length(set_node_L_T_edge)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nL_B_edge-%d, 3, 1',node);
         fprintf(inpFile,'\nR_B_edge-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodez, 3, 1');
+        fprintf(inpFile,'\nrefnodeD, 3, 1');
     end
 
     %% U2-U1=FAB     
@@ -937,44 +1096,47 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nC7-%d, 1, 1',node);
         fprintf(inpFile,'\nC8-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodex, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 1, 1');
     end
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nC7-%d, 2, 1',node);
         fprintf(inpFile,'\nC8-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodex, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
     end
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nC7-%d, 3, 1',node);
         fprintf(inpFile,'\nC8-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodex, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
     end
 
     %% U3-U1=FAB+FCD
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nC3-%d, 1, 1',node);
         fprintf(inpFile,'\nC8-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodex, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 2, 1');
     end
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nC3-%d, 2, 1',node);
         fprintf(inpFile,'\nC8-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodey, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 2, 1');
     end
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nC3-%d, 3, 1',node);
         fprintf(inpFile,'\nC8-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodex, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
+        fprintf(inpFile,'\nrefnodeS, 2, 1');
     end
   
     %% U4-U1=FCD
@@ -983,21 +1145,21 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nC4-%d, 1, 1',node);
         fprintf(inpFile,'\nC8-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodey, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 2, 1');
     end
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nC4-%d, 2, 1',node);
         fprintf(inpFile,'\nC8-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodey, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 2, 1');
     end
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nC4-%d, 3, 1',node);
         fprintf(inpFile,'\nC8-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodey, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 2, 1');
     end
     %% U5-U1=FEF
     for node=1:length(set_node_C5)
@@ -1005,97 +1167,111 @@ function dream2abq(voxFileName, inpFileName)
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nC5-%d, 1, 1',node);
         fprintf(inpFile,'\nC8-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodez, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 3, 1');
     end
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nC5-%d, 2, 1',node);
         fprintf(inpFile,'\nC8-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodez, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 3, 1');
     end
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
         fprintf(inpFile,'\n3');
         fprintf(inpFile,'\nC5-%d, 3, 1',node);
         fprintf(inpFile,'\nC8-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodez, 3, 1');
+        fprintf(inpFile,'\nrefnodeD, 3, 1');
     end
     
     %% U6-U1=FAB+FEF
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nC6-%d, 1, 1',node);
         fprintf(inpFile,'\nC8-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodex, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 3, 1');
     end
   
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nC6-%d, 2, 1',node);
         fprintf(inpFile,'\nC8-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodez, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
+        fprintf(inpFile,'\nrefnodeS, 3, 1');
     end
   
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nC6-%d, 3, 1',node);
         fprintf(inpFile,'\nC8-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodez, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 3, 1');
     end
 
     %% U7-U1=FAB+FCD+FEF
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n5');
         fprintf(inpFile,'\nC2-%d, 1, 1',node);
         fprintf(inpFile,'\nC8-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodex, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 2, 1');
+        fprintf(inpFile,'\nrefnodeS2, 3, 1');
     end
   
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n5');
         fprintf(inpFile,'\nC2-%d, 2, 1',node);
         fprintf(inpFile,'\nC8-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodey, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
+        fprintf(inpFile,'\nrefnodeD, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 3, 1');
     end
   
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n5');
         fprintf(inpFile,'\nC2-%d, 3, 1',node);
         fprintf(inpFile,'\nC8-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodez, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 1, 1');
+        fprintf(inpFile,'\nrefnodeS, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 3, 1');
     end
 
     %% U8-U1=FCD+FEF
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nC1-%d, 1, 1',node);
         fprintf(inpFile,'\nC8-%d, 1, -1',node);
-        fprintf(inpFile,'\nrefnodey, 1, 1');
+        fprintf(inpFile,'\nrefnodeS2, 2, 1');
+        fprintf(inpFile,'\nrefnodeS2, 3, 1');
     end
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nC1-%d, 2, 1',node);
         fprintf(inpFile,'\nC8-%d, 2, -1',node);
-        fprintf(inpFile,'\nrefnodey, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 2, 1');
+        fprintf(inpFile,'\nrefnodeS, 3, 1');
     end
 
     for node=1:length(set_node_C5)
         fprintf(inpFile,'\n**Constraint: Constraint-%d\n*Equation',node);
-        fprintf(inpFile,'\n3');
+        fprintf(inpFile,'\n4');
         fprintf(inpFile,'\nC1-%d, 3, 1',node);
         fprintf(inpFile,'\nC8-%d, 3, -1',node);
-        fprintf(inpFile,'\nrefnodez, 3, 1');
+        fprintf(inpFile,'\nrefnodeS, 2, 1');
+        fprintf(inpFile,'\nrefnodeD, 3, 1');
     end
-    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
     %% Closing the assembly component of the input file
     
     fprintf(inpFile,'\n*End Assembly');
@@ -1119,9 +1295,9 @@ function dream2abq(voxFileName, inpFileName)
     A(57:59)=v1;
     A(65:67)=v2;
     for ii=1:length(grain_order) 
-        fprintf(inpFile, '\n*Material, name=MATERIAL-GRAIN%d',ii);
-        fprintf(inpFile, '\n*Depvar\n10000,');
-        fprintf(inpFile, '\n*User Material, constants=175\n');
+        fprintf(inpFile, '\n*Material, name=MATERIAL-GRAIN%d',grain_order(ii));
+        fprintf(inpFile, '\n*Depvar\n460,');
+        fprintf(inpFile, '\n*User Material, constants=176\n');
         %updating the material parameters with global vectors
         A(60:62)=[u(grain_order(ii)),v(grain_order(ii)),w(grain_order(ii))];
         A(68:70)=[h(grain_order(ii)),k(grain_order(ii)),l(grain_order(ii))];
@@ -1132,6 +1308,7 @@ function dream2abq(voxFileName, inpFileName)
         A(172:174)=centroid(grain_order(ii),:);
         %adding the calculated equivalent spherical diameter for each grain
         A(175)=diameter(grain_order(ii));
+        A(176)=grain_order(ii);
         %printing this information to file
         fprintf(inpFile, '%u, %u, %u, %u, %u, %u, %u, %u\n',A);
     
