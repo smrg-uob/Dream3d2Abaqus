@@ -23,3 +23,14 @@ Run from the command prompt the following:
 where:
 * nameofvoxfile = name of the vox file included in the same directly and which is exported using the *Export Los Alamos FFT File* filter
 * nameofinpfule = is the name of the Abaqus input file you would like to create
+
+## Applying loading for periodic boundary conditions
+The loads should be applied ot the reference nodes (refnodeD, refnodeS, refnodeS2) in the following way:
+To apply axial loading:
+* x-direction: *refnodeD(load,0,0)*, *refnodeS(0,0,0)*, *refnodeS2(0,0,0)*
+* y-direction: *refnodeD(0,load,0)*, *refnodeS(0,0,0)*, *refnodeS2(0,0,0)*
+* z-direction: *refnodeD(0,0,load)*, *refnodeS(0,0,0)*, *refnodeS2(0,0,0)*
+Top apply shear loading:
+* xy: *refnodeD(0,0,0)*, *refnodeS(0,0,0)*, *refnodeS2(0,load,0)*
+* xz: *refnodeD(0,load,0)*, *refnodeS(0,0,0)*, *refnodeS2(0,0,load)*
+* yz: *refnodeD(0,0,load)*, *refnodeS(0,0,load)*, *refnodeS2(0,0,0)*
