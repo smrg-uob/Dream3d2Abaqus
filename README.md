@@ -47,3 +47,5 @@ For the naming convention, you'll notice in the Dream3D filters *testcase__* is 
 To run the the function, use the following convention:
 
 dream2abqN('testcase__'), where *testcase* can be replaced with whatever name you are using.
+
+The output of the function will be a ABAQUS input file *fname__.inp* which you can than import into ABAQUS.
