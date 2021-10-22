@@ -41,6 +41,9 @@ To apply shear loading:
 
 ## New Matlab file using ABAQUS filter in Dream3D
 The Dream3d file (dream2abqN.m) which generates the data required by the function is included in the folder *ABQfilter*.  It will generate the input files and an additional file csv file which contains the euler angles for each grain.  These files should be included in your Matlab folder when running the function.
+
 For the naming convention, you'll notice in the Dream3D filters *testcase__* is used.  Please ensure whatever name you use instead of testcase includes the double underscore after it.
+
 To run the the function, use the following convention:
+
 dream2abqN('testcase__'), where *testcase* can be replaced with whatever name you are using.
